@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AGOL Test — 75 preguntas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f8fb;
+  --card:#ffffff;
+  --accent:#1f6feb;
+  --muted:#6b7280;
+  --success:#16a34a;
+  --danger:#ef4444;
+}
+*{box-sizing:border-box}
+body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); margin:0; padding:24px; color:#0f172a}
+.container{max-width:1100px;margin:0 auto}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.title{font-size:20px;font-weight:700}
+.controls button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+.stats{display:flex;gap:16px;align-items:center;font-size:14px}
+.card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);margin-bottom:12px}
+.question-card{display:flex;flex-direction:column;gap:10px}
+.q-title{font-weight:600}
+.options{display:flex;flex-direction:column;gap:8px}
+.option{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;border:1px solid #eef2ff;cursor:pointer;transition:all 0.12s}
+.option input{transform:scale(1.04)}
+.option.correct{background:#ecfdf5;border-color:#bbf7d0}
+.option.incorrect{background:#fff1f2;border-color:#fecaca}
+.feedback{font-weight:700}
+.progress-wrap{height:12px;background:#e6eefc;border-radius:999px;overflow:hidden}
+.progress{height:100%;background:linear-gradient(90deg,var(--accent),#6fc3ff);width:0%}
+.footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:12px;flex-wrap:wrap}
+.small{color:var(--muted);font-size:13px}
+.badge{display:inline-block;padding:6px 8px;border-radius:999px;background:#eef2ff;color:var(--accent);font-weight:600}
+@media(max-width:700px){
+  .header{flex-direction:column;align-items:flex-start}
+  .controls button{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <div class="title">AGOL Test — 75 preguntas</div>
+      <div class="small">Modo: evaluación instantánea — Preguntas múltiples requieren la selección exacta de todas las opciones correctas</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:end">
+      <div class="stats card" style="display:flex;gap:12px;align-items:center">
+        <div>Total: <strong id="totalQ">0</strong></div>
+        <div>Respondidas: <strong id="answered">0</strong></div>
+        <div class="small">Aciertos: <span id="correctCount">0</span> • Fallos: <span id="wrongCount">0</span></div>
+      </div>
+      <div>
+        <button id="resetBtn" class="controls-btn">Reiniciar y barajar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+  </div>
+
+  <div id="questionsArea"></div>
+
+  <div class="footer">
+    <div class="small" id="resultText">Selecciona respuestas para comenzar el test.</div>
+    <div>
+      <button id="exportBtn" class="badge">Exportar resultados (CSV)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  Formato esperado para QUESTIONS:
+  [
+    {
+      "q": "Pregunta en texto",
+      "options": ["Opción A","Opción B","Opción C"],
+      "correct": ["Opción C"]   // uno o varios; el texto debe coincidir exactamente con la opción (o contenerla)
+    },
+    ...
+  ]
+
+  -- Pega aquí tu array JSON con las 75 preguntas:
+*/
+const QUESTIONS = [
+  {
+    "q": "Which feature allows you to quickly locate a specific setting?",
+    "options": [
+      "ArcGIS Online Search",
+      "Settings Quick Navigation",
+      "Find On Page",
+      "Search Settings"
+    ],
+    "correct": ["Search Settings"]
+  },
+  {
+    "q": "Which two actions can only be performed by an ArcGIS Online administrator? (Choose two answers.)",
+    "options": [
+      "Publish content",
+      "Add or invite members",
+      "Update content",
+      "Review credit status"
+    ],
+    "correct": ["Add or invite members", "Review credit status"]
+  },
+  {
+    "q": "Which Settings tab should an ArcGIS Online administrator use to configure the landing page for their ArcGIS Online organization's website?",
+    "options": [
+      "Home Page",
+      "Collaborations",
+      "Gallery",
+      "General"
+    ],
+    "correct": ["Home Page"]
+  },
+  {
+    "q": "In which section of the General tab would you find the setting to define the standard color style used in ArcGIS StoryMaps?",
+    "options": [
+      "Navigation Bar",
+      "Shared Theme",
+      "Organization Extensions",
+      "Organization Defaults"
+    ],
+    "correct": ["Shared Theme"]
+  },
+  {
+    "q": "Which two settings tabs can you use to manage how users interact with the content hosted in your ArcGIS Online organization? (Choose two answers.)",
+    "options": [
+      "Collaborations tab",
+      "General tab",
+      "Items tab",
+      "Groups tab"
+    ],
+    "correct": ["Items tab", "Groups tabs"]
+  },
+  {
+    "q": "On which Settings page tab can you enable mobile workers to report their locations using the ArcGIS Field Maps mobile app?",
+    "options": [
+      "Credits",
+      "Security",
+      "Utility Services",
+      "Organization Extensions"
+    ],
+    "correct": ["Organization Extensions"]
+  },
+  {
+    "q": "Which two settings can be used to update the contact link for your organization? (Choose two answers.)",
+    "options": [
+      "Valid website URL",
+      "Valid mailto link syntax",
+      "Valid phone number for the organization's administration department",
+      "Administrator's full name and email address"
+    ],
+    "correct": ["Valid website URL", "Valid mailto link syntax"]
+  },
+  {
+    "q": "Which action should you take to modify the logo that appears on your organization's home page?",
+    "options": [
+      "In the Header configuration, enable Show Logo, and then upload your logo.",
+      "In the Design configuration, choose Logo, and then design a custom logo or upload a separate logo file.",
+      "In the Typography configuration, enable Logos, and then upload your logo.",
+      "In the Content Blocks configuration, add a logo block, and then upload your logo."
+    ],
+    "correct": ["In the Header configuration, enable Show Logo, and then upload your logo."]
+  },
+
+  {
+    "q": "Which configuration option in the home page editor should you use to edit the Contact Us link?",
+    "options": ["Design", "Header", "Footer", "Content Blocks"],
+    "correct": ["Footer"]
+  },
+
+  {
+    "q": "Which setting should you use to define the extent when users click New Map from your organization's ArcGIS Online site?",
+    "options": [
+      "Primary Map Viewer",
+      "Analysis Layers",
+      "Map And Scene Defaults",
+      "Web Styles"
+    ],
+    "correct": ["Map And Scene Defaults"]
+  },
+
+  {
+    "q": "Which action should you take to ensure new maps opened by users are focused on the city boundaries?",
+    "options": [
+      "Define the default basemap",
+      "Define the default extent",
+      "Define the primary map viewer",
+      "Define the analysis layers"
+    ],
+    "correct": ["Define the default extent"]
+  },
+
+  {
+    "q": "Which two workflows can only be accomplished using Map Viewer? (Choose two answers.)",
+    "options": [
+      "Styling vector tile layers",
+      "Performing analysis with geoprocessing tools",
+      "Responsive mapping with real-time updates",
+      "Clustering of 75,000 point features"
+    ],
+    "correct": [
+      "Responsive mapping with real-time updates",
+      "Clustering of 75,000 point features"
+    ]
+  },
+
+  {
+    "q": "In which Map And Scene settings section do you enable custom 2D symbols in symbol galleries?",
+    "options": [
+      "Web Styles",
+      "Analysis Layers",
+      "Basemap Gallery For Maps And Scenes",
+      "Configurable Apps"
+    ],
+    "correct": ["Web Styles"]
+  },
+
+  {
+    "q": "Which setting can be configured from map and scene defaults?",
+    "options": [
+      "Default extent",
+      "Default map viewer",
+      "2D web style group",
+      "App templates"
+    ],
+    "correct": ["Default extent"]
+  },
+
+  {
+    "q": "Which security setting gives all members an extra level of security by requesting an additional verification code at login?",
+    "options": [
+      "Allow Portal Access",
+      "Password Policy",
+      "Access And Permissions",
+      "Multifactor Authentication"
+    ],
+    "correct": ["Multifactor Authentication"]
+  },
+
+  {
+    "q": "Which two sections are found on the Security tab of the Settings page? (Choose two answers.)",
+    "options": [
+      "Map and Scene Defaults",
+      "Access Notice",
+      "Administrative Contacts",
+      "Sign in Policy"
+    ],
+    "correct": ["Access Notice", "Sign in Policy"]
+  },
+
+  {
+    "q": "Where will you find information in the ArcGIS Trust Center on improving security posture for ArcGIS Online?",
+    "options": [
+      "Security page > Desktop section > Implementation Guidance",
+      "Security page > Cloud section > ArcGIS Online Guidance",
+      "Security page > Overview section > ArcGIS Security",
+      "Security page > Mobile section > Product Capabilities"
+    ],
+    "correct": ["Security page > Cloud section > ArcGIS Online Guidance"]
+  },
+
+  {
+    "q": "The ArcGIS Trust Center provides which type of information?",
+    "options": [
+      "Member logs detailing the last 100 actions",
+      "Accessibility compliance",
+      "Resources for security, privacy, and compliance",
+      "Access and permissions settings"
+    ],
+    "correct": ["Resources for security, privacy, and compliance"]
+  },
+
+  {
+    "q": "Which two types of information can an administrator find on the Status tab's interactive dashboard? (Choose two answers.)",
+    "options": [
+      "Total number of groups",
+      "Group membership",
+      "Least popular content",
+      "Credits remaining"
+    ],
+    "correct": ["Total number of groups", "Credits remaining"]
+  },
+
+  {
+    "q": "How can an administrator view the current status of all content?",
+    "options": [
+      "Run an activity report",
+      "View the Credits section",
+      "Generate an item report",
+      "Browse to the Members section"
+    ],
+    "correct": ["Generate an item report"]
+  },
+
+  {
+    "q": "Why would an administrator run a report instead of viewing the dashboard?",
+    "options": [
+      "Identify total number of groups",
+      "Identify new layers added in past 2 weeks",
+      "View how many storage credits consumed",
+      "Identify the last member that updated a specific item"
+    ],
+    "correct": ["Identify the last member that updated a specific item"]
+  },
+
+  {
+    "q": "Which information is found in the Members section of the status dashboard?",
+    "options": [
+      "Number of hours using ArcGIS Pro",
+      "Types of apps deployed",
+      "Number of groups a member can create",
+      "Whether members can run a status report"
+    ],
+    "correct": ["Number of hours using ArcGIS Pro"]
+  },
+
+  {
+    "q": "Which resource helps determine credit usage for transactions?",
+    "options": [
+      "Usage Of Credits report",
+      "Credits By Capability table",
+      "Summary Of Credit Usage infographic",
+      "Credits section of the dashboard"
+    ],
+    "correct": ["Credits By Capability table"]
+  },
+
+  {
+    "q": "How are the number of credits in a subscription determined?",
+    "options": [
+      "By transactions performed by organization members",
+      "By number of members",
+      "By user types selected",
+      "By apps created"
+    ],
+    "correct": ["By user types selected"]
+  },
+
+  {
+    "q": "To view a breakdown of storage credit usage for the past 90 days, which action should be taken?",
+    "options": [
+      "Select date range and review summary",
+      "Select date range and review Credit Utilization Chart",
+      "Generate a credit summary report",
+      "Identify credit aggregation by type"
+    ],
+    "correct": []
+  },
+
+  {
+    "q": "Which two ArcGIS Online capabilities consume credits? (Choose two answers.)",
+    "options": [
+      "Creating a web app",
+      "Generating an activity report",
+      "Storing feature layers",
+      "Accessing premium content"
+    ],
+    "correct": ["Storing feature layers", "Accessing premium content"]
+  },
+
+  {
+    "q": "Which section identifies members with highest ArcGIS Pro hours?",
+    "options": ["Groups", "Content", "Members", "Apps"],
+    "correct": ["Apps"]
+  },
+
+  {
+    "q": "Which section identifies total number of items stored?",
+    "options": ["Members section", "Activity report", "Items report", "Content section"],
+    "correct": ["Content section"]
+  },
+
+  {
+    "q": "Which two types of usage can be monitored in the Content section? (Choose two answers.)",
+    "options": [
+      "Number of members in each group",
+      "Who the top contributors are",
+      "Amount of credits consumed",
+      "How many members are sharing items"
+    ],
+    "correct": ["Who the top contributors are", "How many members are sharing items"]
+  },
+
+  {
+    "q": "Which three pieces of information can be monitored using the Apps section? (Choose three answers.)",
+    "options": [
+      "Member's ArcGIS Pro usage",
+      "Credits consumed by apps",
+      "Sharing summary of apps",
+      "Usage by app name",
+      "Usage by app type"
+    ],
+    "correct": [
+      "Member's ArcGIS Pro usage",
+      "Sharing summary of apps"
+    ]
+  },
+
+  {
+    "q": "Which two types of information does the Sharing Summary chart provide? (Choose two answers.)",
+    "options": [
+      "Number of items shared with a group",
+      "Type of items shared",
+      "Credits utilized",
+      "Sharing level of owned items"
+    ],
+    "correct": [
+      "Number of items shared with a group",
+      "Sharing level of owned items"
+    ]
+  },
+
+  {
+    "q": "Which section identifies total credits used by a specific member?",
+    "options": ["Credits", "Groups", "Members", "Content"],
+    "correct": ["Members"]
+  },
+
+  {
+    "q": "Which step assigns a category to an item?",
+    "options": [
+      "Edit the item page",
+      "Assign in Map Viewer",
+      "Select the category and search",
+      "Assign in the group"
+    ],
+    "correct": ["Edit the item page"]
+  },
+
+  {
+    "q": "Which factor should be considered when setting up categories?",
+    "options": [
+      "Tags",
+      "Longevity of the category",
+      "Number of items",
+      "Metadata categories"
+    ],
+    "correct": ["Longevity of the category"]
+  },
+
+  {
+    "q": "Which statement describes the INSPIRE category set?",
+    "options": [
+      "Used to create custom categories",
+      "Organizes EU spatial data infrastructure",
+      "Supports Living Atlas",
+      "Aligns with international standards"
+    ],
+    "correct": ["Organizes EU spatial data infrastructure"]
+  },
+
+  {
+    "q": "Which two ways make items more discoverable? (Choose two answers.)",
+    "options": [
+      "Applying tags to filter search results",
+      "Adding search keywords to title, tags, summary",
+      "Assigning status to prevent deprecated use",
+      "Attractive thumbnail for ranking"
+    ],
+    "correct": [
+      "Applying tags to filter search results",
+      "Adding search keywords to title, tags, summary"
+    ]
+  },
+
+  {
+    "q": "Which step creates a new category?",
+    "options": [
+      "Select a group",
+      "Choose a category set and add a category",
+      "Choose a category set and add tags",
+      "Select an item and assign a category"
+    ],
+    "correct": ["Choose a category set and add a category"]
+  },
+
+  {
+    "q": "Which tab ensures a web map will not be deleted?",
+    "options": ["Settings", "Overview", "Usage", "Data"],
+    "correct": ["Settings"]
+  },
+
+  {
+    "q": "Which two item details should be reviewed for annual updates? (Choose two answers.)",
+    "options": [
+      "Trail popularity data",
+      "Usage views per day",
+      "Settings for how layer is used",
+      "Overview last update date"
+    ],
+    "correct": ["Usage views per day", "Overview last update date"]
+  },
+
+  {
+    "q": "Which two reasons review an item page? (Choose two answers.)",
+    "options": [
+      "Monitor usage",
+      "Change symbology",
+      "Identify ownership",
+      "Run analysis"
+    ],
+    "correct": ["Monitor usage", "Identify ownership"]
+  },
+
+  {
+    "q": "Which group setting restricts members to a list of project team members?",
+    "options": [
+      "Require members to be invited",
+      "Allow members to add themselves",
+      "Accept membership requests",
+      "Automatically add organizational members"
+    ],
+    "correct": ["Require members to be invited"]
+  },
+
+  {
+    "q": "Which group role only allows accessing content?",
+    "options": [
+      "Group member",
+      "Group manager",
+      "Group owner",
+      "Organizational administrator"
+    ],
+    "correct": ["Group member"]
+  },
+
+  {
+    "q": "Steps to create a group?",
+    "options": [
+      "Set up group, add content, share publicly",
+      "Invite users and share items",
+      "Define purpose, set up group, add members, share items",
+      "Add members then set purpose"
+    ],
+    "correct": ["Define purpose, set up group, add members, share items"]
+  },
+
+  {
+    "q": "Which action ensures only specific members access a crime analysis group?",
+    "options": [
+      "Allow everyone to find the group",
+      "Require group managers to approve membership requests",
+      "Verify all members can contribute content",
+      "Ensure only organization members can join"
+    ],
+    "correct": ["Require group managers to approve membership requests"]
+  },
+
+  {
+    "q": "Who can view a feature layer shared to a private Education group?",
+    "options": [
+      "Organization members and group members",
+      "Group members and general public",
+      "Item owner and group members",
+      "Item owner and organization members"
+    ],
+    "correct": ["Item owner and group members"]
+  },
+
+  {
+    "q": "Which sharing option for Fire Department group item?",
+    "options": [
+      "Your organization and group members",
+      "Owner and group members",
+      "Everyone and group members",
+      "Only the owner"
+    ],
+    "correct": ["Your organization and group members"]
+  },
+
+  {
+    "q": "Which statement describes Who Can View A Group?",
+    "options": [
+      "Allows item updates",
+      "Defines who can search/discover a group",
+      "Decides who contributes content",
+      "Controls who is invited"
+    ],
+    "correct": ["Defines who can search/discover a group"]
+  },
+
+  {
+    "q": "Which section verifies Featured Maps And Apps group is viewable by everyone?",
+    "options": ["Content", "Overview", "Settings", "Members"],
+    "correct": ["Overview"]
+  },
+
+  {
+    "q": "Which two reasons evaluate a group using group properties? (Choose two answers.)",
+    "options": [
+      "Mark items as favorites",
+      "Review content",
+      "Change ownership",
+      "Request data"
+    ],
+    "correct": ["Review content", "Change ownership"]
+  },
+
+  {
+    "q": "Why configure group viewable only by members and require invitation?",
+    "options": [
+      "Group needs to be open to all",
+      "Content is confidential",
+      "Restrict updates",
+      "Items already shared"
+    ],
+    "correct": ["Content is confidential"]
+  },
+
+  {
+    "q": "Steps when a member owning groups leaves?",
+    "options": [
+      "Disable access, transfer items/groups, delete member",
+      "Disable access, delete member, transfer items",
+      "Delete, disable access, transfer items",
+      "Transfer items, delete member, disable access"
+    ],
+    "correct": ["Disable access, transfer items/groups, delete member"]
+  },
+
+  {
+    "q": "Which two default roles can create groups? (Choose two answers.)",
+    "options": ["Data Editor", "User", "Viewer", "Publisher"],
+    "correct": ["User", "Publisher"]
+  },
+
+  {
+    "q": "Steps to transfer content ownership?",
+    "options": [
+      "Select item owner then transfer",
+      "Sort items then transfer",
+      "Run report then transfer",
+      "Transfer from the group's shared items"
+    ],
+    "correct": ["Select item owner then transfer"]
+  },
+
+  {
+    "q": "How to transfer group ownership?",
+    "options": [
+      "Transfer items in the group",
+      "Create copy of the group",
+      "Select group and assign new owner",
+      "Share with the new owner"
+    ],
+    "correct": ["Select group and assign new owner"]
+  },
+
+  {
+    "q": "Which invitation method converts a public account to an organizational account?",
+    "options": [
+      "Add members and notify by email",
+      "Invite members to join using an account of their choice",
+      "Add members automatically",
+      "Add members without invitation"
+    ],
+    "correct": ["Invite members to join using an account of their choice"]
+  },
+
+  {
+    "q": "You need to create a member username with job title without a temporary password. Which invitation method?",
+    "options": [
+      "Invite using an account of their choice",
+      "Add members and notify by email",
+      "Add members automatically",
+      "Add members without invitations"
+    ],
+    "correct": ["Add members and notify by email"]
+  },
+
+  {
+    "q": "Steps to invite members?",
+    "options": [
+      "Choose invitation, set properties, add info, confirm",
+      "Choose invitation, add info, set properties, confirm",
+      "Add info, choose invitation, set properties, confirm",
+      "Add info, set properties, choose invitation, confirm"
+    ],
+    "correct": ["Choose invitation, add info, set properties, confirm"]
+  },
+
+  {
+    "q": "Which property controls individual tasks a member can perform?",
+    "options": ["User type", "License", "Role", "Privilege"],
+    "correct": ["Role"]
+  },
+
+  {
+    "q": "Which action simplifies creating a custom role?",
+    "options": [
+      "Import multiple default roles",
+      "Import a default role then modify",
+      "Select each privilege manually",
+      "Eliminate dependent privileges"
+    ],
+    "correct": ["Import a default role then modify"]
+  },
+
+  {
+    "q": "Which two roles allow performing analysis? (Choose two answers.)",
+    "options": ["User", "Publisher", "Administrator", "Data Editor"],
+    "correct": ["Publisher", "Administrator"]
+  },
+
+  {
+    "q": "Which user type for members who only need to use content?",
+    "options": ["Mobile Worker", "Viewer", "Creator", "Contributor"],
+    "correct": ["Viewer"]
+  },
+
+  {
+    "q": "Custom role needs User privileges plus one Publisher privilege. Best method?",
+    "options": [
+      "Import Publisher role then remove",
+      "Import User role then add privileges",
+      "Enable all needed privileges",
+      "Import both User and Publisher"
+    ],
+    "correct": ["Import User role then add privileges"]
+  },
+
+  {
+    "q": "How to change user type of a Viewer becoming GIS analyst?",
+    "options": [
+      "Change defaults",
+      "Reassign user type from Members page",
+      "Change user type in Manage Roles",
+      "Bulk assign Creator type"
+    ],
+    "correct": ["Reassign user type from Members page"]
+  },
+
+  {
+    "q": "Which capability does a Viewer type include?",
+    "options": [
+      "Use ArcGIS Pro for analysis",
+      "Edit map data",
+      "Use content created by others",
+      "Edit data in field app"
+    ],
+    "correct": ["Use content created by others"]
+  },
+
+  {
+    "q": "Workflow to assign ArcGIS Pro Advanced add-on license?",
+    "options": [
+      "Organization > Licenses > user > Manage Add-on Licenses",
+      "Organization > Members > user > Manage Add-on Licenses",
+      "Members > Manage Add-on > user",
+      "Licenses > Manage Add-on > user"
+    ],
+    "correct": ["Organization > Members > user > Manage Add-on Licenses"]
+  },
+
+  {
+    "q": "Which statement describes add-on app licenses?",
+    "options": [
+      "Apps enabled as bundles",
+      "Specific to new member defaults",
+      "Individual apps assigned to compatible user types",
+      "Groups of apps included with a user type"
+    ],
+    "correct": ["Individual apps assigned to compatible user types"]
+  },
+
+  {
+    "q": "Which two ways can groups be used? (Choose two answers.)",
+    "options": [
+      "Split credits among members",
+      "Share e-Learning options",
+      "Allow all members to update items",
+      "Collaborate with organizational members"
+    ],
+    "correct": [
+      "Allow all members to update items",
+      "Collaborate with organizational members"
+    ]
+  },
+
+  {
+    "q": "Which two ways can an administrator manage credit? (Choose two answers.)",
+    "options": [
+      "Allocate credits",
+      "Members request credits",
+      "Credit budgeting",
+      "Default credits per subscription"
+    ],
+    "correct": ["Allocate credits", "Credit budgeting"]
+  },
+
+  {
+    "q": "Which resource provides a platform for Esri professionals to interact?",
+    "options": [
+      "Esri Community",
+      "e-Learning",
+      "My Esri",
+      "Manage Esri email communication"
+    ],
+    "correct": ["Esri Community"]
+  },
+
+  {
+    "q": "Member needs credits for analysis but has consumed all. Which two actions? (Choose two answers.)",
+    "options": [
+      "Change user type",
+      "Enable members to set their limits",
+      "Provide additional credits",
+      "Set credit allocation to No Limit"
+    ],
+    "correct": ["Provide additional credits", "Set credit allocation to No Limit"]
+  },
+
+  {
+    "q": "When should Esri access be enabled?",
+    "options": [
+      "Needs e-Learning only",
+      "Has public account needing training history",
+      "Needs e-Learning and collaboration",
+      "Needs to collaborate independently"
+    ],
+    "correct": ["Needs e-Learning and collaboration"]
+  },
+
+  {
+    "q": "Which two items can be set in new member defaults? (Choose two answers.)",
+    "options": [
+      "Member role",
+      "Multifactor authentication",
+      "Security questions",
+      "Credit allocation"
+    ],
+    "correct": ["Member role", "Credit allocation"]
+  },
+
+  {
+    "q": "What is the benefit of setting new member defaults?",
+    "options": [
+      "Requests for credits can be made",
+      "Members can join groups",
+      "The invitation process is streamlined",
+      "Licenses can be revoked"
+    ],
+    "correct": ["The invitation process is streamlined"]
+  },
+
+  {
+    "q": "Which task is required before deleting a member?",
+    "options": [
+      "Delete or transfer owned groups and content",
+      "Revoke all licenses manually",
+      "Remove Esri access",
+      "Revoke add-on licenses"
+    ],
+    "correct": ["Delete or transfer owned groups and content"]
+  },
+
+  {
+    "q": "Which action removes a member’s access while keeping training history?",
+    "options": [
+      "Disable the account",
+      "Ask Esri to transfer training history",
+      "Keep Esri access enabled",
+      "Convert to public account"
+    ],
+    "correct": ["Keep Esri access enabled"]
+  }
+];
+
+// ---------- LOGIC ----------
+function shuffleArray(a){ return a.sort(()=>Math.random()-0.5); }
+function escapeHtml(s){ if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function norm(s){ return String(s||'').trim().toLowerCase().replace(/[.]+$/,''); }
+
+let current = [];
+
+function render(){
+  // barajar y renderizar
+  current = shuffleArray(QUESTIONS.slice());
+  const container = document.getElementById('questionsArea');
+  container.innerHTML = '';
+  document.getElementById('totalQ').textContent = current.length;
+  document.getElementById('answered').textContent = 0;
+  document.getElementById('correctCount').textContent = 0;
+  document.getElementById('wrongCount').textContent = 0;
+  updateProgress();
+
+  current.forEach((item, idx)=>{
+    const qid = 'q'+idx;
+    const isMulti = item.correct && item.correct.length>1;
+    const card = document.createElement('div');
+    card.className = 'card question-card';
+    let html = `<div class="q-title">${idx+1}. ${escapeHtml(item.q)}</div>`;
+    html += '<div class="options">';
+    item.options.forEach((opt, oi)=>{
+      const inputType = isMulti ? 'checkbox' : 'radio';
+      const name = 'name_'+qid;
+      html += `<label class="option" id="${qid}_opt${oi}">`;
+      html += `<input type="${inputType}" name="${name}" data-q="${idx}" data-val="${escapeHtml(opt)}" onchange="onChange(this)">`;
+      html += `<span>${escapeHtml(opt)}</span></label>`;
+    });
+    html += '</div>';
+    html += `<div class="feedback" id="${qid}_fb"></div>`;
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+  // scroll to top for convenience
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function onChange(el){
+  const qIdx = parseInt(el.dataset.q);
+  const item = current[qIdx];
+  const qid = 'q'+qIdx;
+  const selectors = document.querySelectorAll(`[data-q="${qIdx}"]`);
+  const selected = Array.from(selectors).filter(i=>i.checked).map(i=>i.dataset.val);
+  const selNorm = selected.map(norm);
+  const correctNorm = (item.correct||[]).map(norm);
+  const fb = document.getElementById(qid + '_fb');
+
+  let isCorrect = false;
+  if(correctNorm.length > 1){
+    // EXACT match: mismas longitudes y todos seleccionados en corrects
+    if(selNorm.length === correctNorm.length && selNorm.every(s=>correctNorm.includes(s))){
+      isCorrect = true;
+    } else {
+      isCorrect = false;
+    }
+  } else {
+    if(selNorm.length > 0 && correctNorm.includes(selNorm[0])) isCorrect = true;
+    else isCorrect = false;
+  }
+
+  // Update classes per option (visual)
+  selectors.forEach(inp => {
+      const label = inp.closest('.option');
+      label.classList.remove('correct', 'incorrect');
+
+      if(correctNorm.length === 1){ // Pregunta simple
+          if(correctNorm.includes(norm(inp.dataset.val))){
+              label.classList.add('correct'); // mostrar correcta en verde
+          } else if(inp.checked && !correctNorm.includes(norm(inp.dataset.val))){
+              label.classList.add('incorrect'); // seleccionado incorrecto en rojo
+          }
+      }
+      // en preguntas múltiples, no mostrar colores
+  });
+
+  fb.textContent = isCorrect ? '✔ Correcto' : (selected.length>0 ? '✖ Incorrecto' : '');
+  updateCounts();
+}
+
+function updateCounts(){
+  const cards = document.querySelectorAll('#questionsArea .card.question-card');
+  let correct=0, wrong=0, answered=0;
+  cards.forEach((card, idx)=>{
+    const fb = card.querySelector('.feedback');
+    if(fb && fb.textContent){
+      answered++;
+      if(fb.textContent.includes('Correcto')) correct++;
+      else wrong++;
+    }
+  });
+  document.getElementById('answered').textContent = answered;
+  document.getElementById('correctCount').textContent = correct;
+  document.getElementById('wrongCount').textContent = wrong;
+  updateProgress();
+  const resultText = document.getElementById('resultText');
+  if(answered === current.length){
+    resultText.textContent = `Test completado. Aciertos: ${correct} / ${current.length} — Fallos: ${wrong}`;
+  } else {
+    resultText.textContent = `Respondidas ${answered} de ${current.length}. Aciertos: ${correct}, Fallos: ${wrong}`;
+  }
+}
+
+function updateProgress(){
+  const total = current.length || 1;
+  const answered = parseInt(document.getElementById('answered').textContent) || 0;
+  const pct = Math.round((answered/total)*100);
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+// reiniciar / exportar
+document.getElementById('resetBtn').addEventListener('click', render);
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const rows = [['question','selected','correct','result']];
+  const cards = document.querySelectorAll('#questionsArea .card.question-card');
+  cards.forEach((card, idx)=>{
+    const q = current[idx];
+    const fb = card.querySelector('.feedback').textContent || '';
+    const selectors = card.querySelectorAll('[data-q="'+idx+'"]');
+    const selected = Array.from(selectors).filter(i=>i.checked).map(i=>i.dataset.val).join('|');
+    const correct = (q.correct||[]).join('|');
+    const result = fb.includes('Correcto') ? 'correct' : (selected? 'wrong' : 'unanswered');
+    rows.push([q.q, selected, correct, result]);
+  });
+  const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'agol_test_results.csv'; document.body.appendChild(a); a.click();
+  URL.revokeObjectURL(url); a.remove();
+});
+
+// primer render
+render();
+</script>
+</body>
+</html>
